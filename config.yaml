@@ -1,9 +1,9 @@
 #设置读取文件的目录
-#read_file_address: "/home/xuelei/fileCheck/result.202309191548"
+#read_file_address: "../result.202309211506"
 read_file_address: "c:/resource"
 
- #设置输出文件的目录
-#write_file_address: "/home/xuelei/fileCheck/result.202309191548"
+#设置输出文件的目录
+#write_file_address: "../result.202309211506"
 write_file_address: "c:/resource"
 
 #设置调用tn的url

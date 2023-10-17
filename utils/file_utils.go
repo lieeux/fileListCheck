@@ -48,19 +48,3 @@ func WriteAfidList(filename string, afids []string) error { //接受文件名和
 
 	return writer.Flush() //将缓冲区中的数据写入文件
 }
-
-// 分类文件
-func ClassifyFiles(afids []string, classifyFunc func(string) bool) ([]string, []string) {
-	var correct []string
-	var incorrect []string
-
-	for _, afid := range afids {
-		if classifyFunc(afid) {
-			correct = append(correct, afid)
-		} else {
-			incorrect = append(incorrect, afid)
-		}
-	}
-
-	return correct, incorrect
-}
