@@ -11,3 +11,16 @@ seed_api_url: "http://118.193.47.85:5143"
 
 #设置调用pn的url
 pn_url: "https://pnode.solarfs.io"
+
+#设置读取文件的文件名
+#小文件afid列表
+small_file_name: "rfsDataAfidList.txt"
+
+#大文件afid列表
+large_file_name: "rawAfidList.txt"
+
+#过期文件afid列表
+expired_file_name: "expiredAfidList.txt"
+
+#过期大文件afid列表
+expiredlarge_file_name: "expiredRawAfidList.txt"
