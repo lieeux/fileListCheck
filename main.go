@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fileListCheck/utils"
 	"fmt"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -12,214 +16,97 @@ func main() {
 
 	utils.LoadConfig()
 
-	// 创建等待组
+	// 创建等待组,使用go协程并发处理任务
 	var wg sync.WaitGroup
-
-	// 使用go协程并发执行读取文件任务
 	wg.Add(4)
 
-	var smallFiles []string
-	var largeFiles []string
-	var expiredFiles []string
-	var expiredLargeFiles []string
+	//go func() {
+	//	defer wg.Done()
+	//	utils.BatchStreamFor(utils.Conf.ReadFileAddress+"/"+utils.Conf.SmallFileName, utils.Conf.WriteFileAddress+"/rfsData_incorrect_expired.txt", utils.Conf.WriteFileAddress+"/rfsData_incorrect_large.txt", utils.Conf.WriteFileAddress+"/rfsData_correct.txt", utils.IsExpiredFile, utils.IsLargeFile, 1000, 10)
+	//}()
 
 	go func() {
 		defer wg.Done()
 
-		// 读取小文件afid列表
-		var err error
-		smallFiles, err = utils.ReadAfidList(utils.Conf.ReadFileAddress + "/" + utils.Conf.SmallFileName)
-		if err != nil {
-			fmt.Println("无法读取小文件afid列表:", err)
+		filer, _ := os.Open(utils.Conf.ReadFileAddress + "/" + utils.Conf.SmallFileName) //打开指定文件，返回文件对象
+		defer filer.Close()
+		scanner := bufio.NewScanner(filer) //创建一个用于读取文件的扫描器
+
+		filew1, _ := os.Create(utils.Conf.WriteFileAddress + "/rfsData_incorrect_expired.txt") //创建一个指定名称的新文件，返回一个文件对象
+		defer filew1.Close()
+		writer1 := bufio.NewWriter(filew1) //创建一个用于写入文件的缓冲写入器
+
+		filew2, _ := os.Create(utils.Conf.WriteFileAddress + "/rfsData_incorrect_large.txt") //创建一个指定名称的新文件，返回一个文件对象
+		defer filew2.Close()
+		writer2 := bufio.NewWriter(filew2) //创建一个用于写入文件的缓冲写入器
+
+		filew3, _ := os.Create(utils.Conf.WriteFileAddress + "/rfsData_correct.txt") //创建一个指定名称的新文件，返回一个文件对象
+		defer filew3.Close()
+		writer3 := bufio.NewWriter(filew3) //创建一个用于写入文件的缓冲写入器
+
+		filew4, _ := os.Create(utils.Conf.WriteFileAddress + "/seed_files.txt") //创建一个指定名称的新文件，返回一个文件对象
+		defer filew4.Close()
+		writer4 := bufio.NewWriter(filew4) //创建一个用于写入文件的缓冲写入器
+
+		filew5, _ := os.Create(utils.Conf.WriteFileAddress + "/notseed_files.txt") //创建一个指定名称的新文件，返回一个文件对象
+		defer filew5.Close()
+		writer5 := bufio.NewWriter(filew5) //创建一个用于写入文件的缓冲写入器
+
+		var wg sync.WaitGroup // 创建等待组
+
+		//var workerNum = 5
+		// 创建一个退出通道，用于通知 goroutine 退出
+		exitCh := make(chan struct{})
+		//建立一个缓冲通道，大小为10
+		lines := make(chan string, utils.Conf.BufferChan)
+		done := make(chan struct{})
+
+		// 创建生产者，从文件中读取afid
+		go func() {
+			defer close(done)
+			utils.ProduceLines(scanner, lines, exitCh)
+		}()
+
+		//创建消费者，消费通道中的afid
+		for i := 0; i < utils.Conf.Worker; i++ {
+			wg.Add(1)
+			go utils.ConsumeLinesPro(writer1, writer2, writer3, writer4, writer5, utils.IsExpiredFile, utils.IsLargeFile, lines, &wg)
 		}
+
+		//信号通道，接受中断信号
+		signals := make(chan os.Signal, 1)
+		signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+		select {
+		case <-signals:
+			// 接收到中断信号，发送退出信号并等待生产者协程完成
+			close(exitCh) // 发送退出信号，通知生产者协程退出
+			<-done        // 等待生产者协程完成
+		case <-done:
+			// 生产者协程已完成，无需等待中断信号
+		}
+		wg.Wait()
+
+		writer1.Flush() //将缓冲区中的数据写入文件
+		writer2.Flush() //将缓冲区中的数据写入文件
+		writer3.Flush() //将缓冲区中的数据写入文件
+		writer4.Flush() //将缓冲区中的数据写入文件
+		writer5.Flush() //将缓冲区中的数据写入文件
+
 	}()
 
 	go func() {
 		defer wg.Done()
-
-		// 读取大文件afid列表
-		var err error
-		largeFiles, err = utils.ReadAfidList(utils.Conf.ReadFileAddress + "/" + utils.Conf.LargeFileName)
-		if err != nil {
-			fmt.Println("无法读取大文件afid列表:", err)
-		}
+		utils.BatchStreamFor(utils.Conf.ReadFileAddress+"/"+utils.Conf.LargeFileName, utils.Conf.WriteFileAddress+"/raw_incorrect_expired.txt", utils.Conf.WriteFileAddress+"/raw_incorrect_small.txt", utils.Conf.WriteFileAddress+"/raw_correct.txt", utils.IsExpiredFile, utils.IsSmallFile, utils.Conf.BufferChan, utils.Conf.Worker)
 	}()
 
 	go func() {
 		defer wg.Done()
-
-		// 读取过期文件afid列表
-		var err error
-		expiredFiles, err = utils.ReadAfidList(utils.Conf.ReadFileAddress + "/" + utils.Conf.ExpiredFileName)
-		if err != nil {
-			fmt.Println("无法读取过期文件afid列表:", err)
-		}
+		utils.BatchStreamFor(utils.Conf.ReadFileAddress+"/"+utils.Conf.ExpiredFileName, utils.Conf.WriteFileAddress+"/expired_correct.txt", utils.Conf.WriteFileAddress+"/expired_incorrect_small.txt", utils.Conf.WriteFileAddress+"/expired_incorrect_large.txt", utils.IsExpiredFile, utils.IsSmallFile, utils.Conf.BufferChan, utils.Conf.Worker)
 	}()
 
 	go func() {
 		defer wg.Done()
-
-		// 读取过期大文件afid列表
-		var err error
-		expiredLargeFiles, err = utils.ReadAfidList(utils.Conf.ReadFileAddress + "/" + utils.Conf.ExpiredLargeFileName)
-		if err != nil {
-			fmt.Println("无法读取过期大文件afid列表:", err)
-		}
-	}()
-
-	// 等待所有协程完成读取任务
-	wg.Wait()
-
-	// 创建新的等待组,使用go协程并发处理任务
-	wg.Add(5)
-
-	go func() {
-		defer wg.Done()
-
-		// 分类文件
-		var smallCorrect []string
-		var smallIncorrectLarge []string
-		var smallIncorrectExpired []string
-
-		for _, afid1 := range smallFiles {
-			if utils.IsExpiredFile(afid1) {
-				smallIncorrectExpired = append(smallIncorrectExpired, afid1)
-			} else if utils.IsLargeFile(afid1) {
-				smallIncorrectLarge = append(smallIncorrectLarge, afid1)
-			} else {
-				smallCorrect = append(smallCorrect, afid1)
-			}
-		}
-
-		// 输出结果到文件
-		err := utils.WriteAfidList(utils.Conf.WriteFileAddress+"/rfsData_correct.txt", smallCorrect)
-		if err != nil {
-			fmt.Println("无法写入小文件正确列表:", err)
-		}
-		err = utils.WriteAfidList(utils.Conf.WriteFileAddress+"/rfsData_incorrect_large.txt", smallIncorrectLarge)
-		if err != nil {
-			fmt.Println("无法写入小文件过大列表:", err)
-		}
-		err = utils.WriteAfidList(utils.Conf.WriteFileAddress+"/rfsData_incorrect_expired.txt", smallIncorrectExpired)
-		if err != nil {
-			fmt.Println("无法写入小文件过期列表:", err)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-
-		// 分类文件
-		var largeCorrect []string
-		var largeIncorrectSmall []string
-		var largeIncorrectExpired []string
-
-		for _, afid2 := range largeFiles {
-			if utils.IsExpiredFile(afid2) {
-				largeIncorrectExpired = append(largeIncorrectExpired, afid2)
-			} else if utils.IsSmallFile(afid2) {
-				largeIncorrectSmall = append(largeIncorrectSmall, afid2)
-			} else {
-				largeCorrect = append(largeCorrect, afid2)
-			}
-		}
-
-		// 输出结果到文件
-		err := utils.WriteAfidList(utils.Conf.WriteFileAddress+"/raw_correct.txt", largeCorrect)
-		if err != nil {
-			fmt.Println("无法写入大文件正确列表:", err)
-		}
-		err = utils.WriteAfidList(utils.Conf.WriteFileAddress+"/raw_incorrect_small.txt", largeIncorrectSmall)
-		if err != nil {
-			fmt.Println("无法写入大文件过小列表:", err)
-		}
-		err = utils.WriteAfidList(utils.Conf.WriteFileAddress+"/raw_incorrect_expired.txt", largeIncorrectExpired)
-		if err != nil {
-			fmt.Println("无法写入大文件过期列表:", err)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-
-		// 分类文件
-		var expiredCorrect []string
-		var expiredIncorrectSmall []string
-		var expiredIncorrectLarge []string
-
-		for _, afid3 := range expiredFiles {
-			if utils.IsExpiredFile(afid3) {
-				expiredCorrect = append(expiredCorrect, afid3)
-			} else if utils.IsSmallFile(afid3) {
-				expiredIncorrectSmall = append(expiredIncorrectSmall, afid3)
-			} else {
-				expiredIncorrectLarge = append(expiredIncorrectLarge, afid3)
-			}
-		}
-
-		// 输出结果到文件
-		err := utils.WriteAfidList(utils.Conf.WriteFileAddress+"/expired_correct.txt", expiredCorrect)
-		if err != nil {
-			fmt.Println("无法写入过期文件正确列表:", err)
-		}
-		err = utils.WriteAfidList(utils.Conf.WriteFileAddress+"/expired_incorrect_small.txt", expiredIncorrectSmall)
-		if err != nil {
-			fmt.Println("无法写入没过期小文件列表:", err)
-		}
-		err = utils.WriteAfidList(utils.Conf.WriteFileAddress+"/expired_incorrect_large.txt", expiredIncorrectLarge)
-		if err != nil {
-			fmt.Println("无法写入没过期大文件列表:", err)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-
-		// 分类文件
-		var expiredLargeExpired []string
-		var expiredLargeUnexpiredSmall []string
-		var expiredLargeUnexpiredLarge []string
-
-		for _, afid4 := range expiredLargeFiles {
-			if utils.IsExpiredFile(afid4) {
-				expiredLargeExpired = append(expiredLargeExpired, afid4)
-			} else if utils.IsSmallFile(afid4) {
-				expiredLargeUnexpiredSmall = append(expiredLargeUnexpiredSmall, afid4)
-			} else {
-				expiredLargeUnexpiredLarge = append(expiredLargeUnexpiredLarge, afid4)
-			}
-		}
-
-		// 输出结果到文件
-		err := utils.WriteAfidList(utils.Conf.WriteFileAddress+"/expiredLarge_expired.txt", expiredLargeExpired)
-		if err != nil {
-			fmt.Println("无法写入过期大文件过期列表:", err)
-		}
-		err = utils.WriteAfidList(utils.Conf.WriteFileAddress+"/expiredLarge_unexpired_small.txt", expiredLargeUnexpiredSmall)
-		if err != nil {
-			fmt.Println("无法写入过期大文件未过期小文件列表:", err)
-		}
-		err = utils.WriteAfidList(utils.Conf.WriteFileAddress+"/expiredLarge_unexpired_large.txt", expiredLargeUnexpiredLarge)
-		if err != nil {
-			fmt.Println("无法写入过期大文件未过期大文件列表:", err)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-
-		// 查询小文件是否为seed文件
-		seedFiles, err := utils.FindSeedFiles(smallFiles)
-		if err != nil {
-			fmt.Println("查询seed文件时发生错误:", err)
-			return
-		}
-
-		// 输出结果到文件
-		err = utils.WriteAfidList(utils.Conf.WriteFileAddress+"/seed_files.txt", seedFiles)
-		if err != nil {
-			fmt.Println("无法写入seed文件列表:", err)
-		}
+		utils.BatchStreamFor(utils.Conf.ReadFileAddress+"/"+utils.Conf.ExpiredLargeFileName, utils.Conf.WriteFileAddress+"/expiredLarge_expired.txt", utils.Conf.WriteFileAddress+"/expiredLarge_unexpired_small.txt", utils.Conf.WriteFileAddress+"/expiredLarge_unexpired_large.txt", utils.IsExpiredFile, utils.IsSmallFile, utils.Conf.BufferChan, utils.Conf.Worker)
 	}()
 
 	// 等待所有协程完成

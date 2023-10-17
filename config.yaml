@@ -24,3 +24,9 @@ expired_file_name: "expiredAfidList.txt"
 
 #过期大文件afid列表
 expiredlarge_file_name: "expiredRawAfidList.txt"
+
+#缓冲通道数量
+bufferChan_number: 1000
+
+#工作线程数量
+worker_number: 10

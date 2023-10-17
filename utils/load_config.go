@@ -14,6 +14,8 @@ type Config struct {
 	LargeFileName        string `mapstructure:"large_file_name"`
 	ExpiredFileName      string `mapstructure:"expired_file_name"`
 	ExpiredLargeFileName string `mapstructure:"expiredlarge_file_name"`
+	BufferChan           int    `mapstructure:"bufferChan_number"`
+	Worker               int    `mapstructure:"worker_number"`
 }
 
 var Conf Config
