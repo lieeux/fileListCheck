@@ -3,16 +3,15 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/spf13/viper"
 	"io"
 	"net/http"
 )
 
-type Config struct {
-	ReadFileAddress  string `mapstructure:"read_file_address"`
-	WriteFileAddress string `mapstructure:"write_file_address"`
-	SeedApiUrl       string `mapstructure:"seed_api_url"`
-}
+//type Config struct {
+//	ReadFileAddress  string `mapstructure:"read_file_address"`
+//	WriteFileAddress string `mapstructure:"write_file_address"`
+//	SeedApiUrl       string `mapstructure:"seed_api_url"`
+//}
 
 type Response struct {
 	Code int    `json:"code"`
@@ -35,26 +34,26 @@ type Response struct {
 // 查询小文件是否为seed文件
 func FindSeedFiles(afids []string) ([]string, error) { //接受读取的afid切片，返回是seed的afid切片
 
-	// 读取配置文件
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-	err := viper.ReadInConfig()
-	if err != nil {
-		panic(fmt.Errorf("Failed to read config file: %s", err))
-	}
-
-	// 解析配置文件到结构体
-	var config Config
-	err = viper.Unmarshal(&config)
-	if err != nil {
-		panic(fmt.Errorf("Failed to parse config file: %s", err))
-	}
+	//// 读取配置文件
+	//viper.SetConfigName("config")
+	//viper.SetConfigType("yaml")
+	//viper.AddConfigPath(".")
+	//err := viper.ReadInConfig()
+	//if err != nil {
+	//	panic(fmt.Errorf("Failed to read config file: %s", err))
+	//}
+	//
+	//// 解析配置文件到结构体
+	//var config Config
+	//err = viper.Unmarshal(&config)
+	//if err != nil {
+	//	panic(fmt.Errorf("Failed to parse config file: %s", err))
+	//}
 
 	var seedFiles []string //声明接收返回值的切片
 
 	for _, afid := range afids {
-		seedAPI := config.SeedApiUrl + afid
+		seedAPI := Conf.SeedApiUrl + "/tn/location/seedid/" + afid
 		resp, err := http.Get(seedAPI) //使用http.Get向API URL发送GET请求，返回响应对象
 		if err != nil {
 			return nil, err
