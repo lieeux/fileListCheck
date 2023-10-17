@@ -1,8 +1,8 @@
 #设置读取文件的目录
-read_file_address: "c:/resource"
+read_file_address: "/home/xuelei/fileCheck/result.202309191548"
 
 #设置输出文件的目录
-write_file_address: "c:/resource"
+write_file_address: "/home/xuelei/fileCheck/result.202309191548"
 
 #设置调用API的url
 seed_api_url: "http://118.193.47.85:5143/tn/location/seedid/"
