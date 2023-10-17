@@ -7,30 +7,8 @@ import (
 	"time"
 )
 
-//type Config struct {
-//	ReadFileAddress  string `mapstructure:"read_file_address"`
-//	WriteFileAddress string `mapstructure:"write_file_address"`
-//	SeedApiUrl       string `mapstructure:"seed_api_url"`
-//}
-
 func main() {
 	startTime := time.Now() // 记录程序开始时间
-
-	//// 读取配置文件
-	//viper.SetConfigName("config")
-	//viper.SetConfigType("yaml")
-	//viper.AddConfigPath(".")
-	//err := viper.ReadInConfig()
-	//if err != nil {
-	//	panic(fmt.Errorf("Failed to read config file: %s", err))
-	//}
-	//
-	//// 解析配置文件到结构体
-	//var config Config
-	//err = viper.Unmarshal(&config)
-	//if err != nil {
-	//	panic(fmt.Errorf("Failed to parse config file: %s", err))
-	//}
 
 	utils.LoadConfig()
 

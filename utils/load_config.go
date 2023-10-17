@@ -15,7 +15,6 @@ type Config struct {
 var Conf Config
 
 func LoadConfig() {
-
 	// 读取配置文件
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
@@ -26,7 +25,6 @@ func LoadConfig() {
 	}
 
 	// 解析配置文件到结构体
-	//var Conf Config
 	err = viper.Unmarshal(&Conf)
 	if err != nil {
 		panic(fmt.Errorf("Failed to parse config file: %s", err))

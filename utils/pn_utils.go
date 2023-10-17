@@ -5,10 +5,6 @@ import (
 	"strconv"
 )
 
-//var (
-//	bfsClient, err = bfs.NewClient(Conf.PnUrl, &bfs.Config{Debug: true})
-//)
-
 // 判断是否为过期文件
 func IsExpiredFile(afid string) bool {
 	bfsClient, err := bfs.NewClient(Conf.PnUrl, &bfs.Config{Debug: true})
